@@ -4,6 +4,7 @@ import json
 
 from PIL import Image, ImageOps
 import cv2
+import uuid
 import time
 
 
@@ -42,6 +43,7 @@ def runMediapipe(filename, mediapipe_directory, outputname):
 class TrainingImage():
     def __init__(self, path):
         assert isinstance(path, str)
+
         self.path = path
     def testBad(self, output_file, primer, mediapipeDirectory):
         testVideo = createVideoFromImages([self,], output_file, primer)
@@ -65,11 +67,37 @@ class TrainingImage():
     def __repr__(self):
         return self.path
         
-         
+def checkAlreadyRenamed(file_name):
+    def checkValidUUID(givenStr):
+        assert isinstance(givenStr, str)
+        try:
+            uuid.UUID(givenStr)
+            return True
+        except ValueError:
+            return False
 
-def getImagesInFolder(absolutePath):
+    assert isinstance(file_name, str)
+    try:
+        file_name = os.path.splitext(file_name)[0]
+        if any(checkValidUUID(x) for x in file_name.split("_")):
+            return True
+        return False
+    except Exception as e:
+        print("Check process exception:", e)
+        return False
+
+def renameImageUUID(absolutePath, file_name, forName):
+    if checkAlreadyRenamed(file_name) or os.path.isdir(file_name):
+        return file_name
+    newname = forName + "_" + str(uuid.uuid4()) + os.path.splitext(file_name)[1]
+    os.rename(os.path.join(absolutePath, file_name), os.path.join(absolutePath, newname))
+    return newname
+
+def getImagesInFolder(absolutePath, forName):
     assert isinstance(absolutePath, str)
-    images = [TrainingImage(os.path.join(absolutePath, img)) for img in os.listdir(absolutePath) if img.endswith(".jpg") or img.endswith(".jpeg") or img.endswith(".png")]
+    assert isinstance(forName, str)
+    image_names = [renameImageUUID(absolutePath, img, forName) for img in os.listdir(absolutePath) if img.endswith(".jpg") or img.endswith(".jpeg") or img.endswith(".png")]
+    images = [TrainingImage(os.path.join(absolutePath, img)) for img in image_names]
     returnImages = []
     for img in images:
         try:
@@ -125,6 +153,7 @@ class Hash:
 
 
 def photoToJSON(absolutePath, word, mediapipeDirectory, PREVIOUS_DATA):
+    renameImagesUUID(absolutePath)
     ALL_IMAGES = getImagesInFolder(absolutePath)
     
     if PREVIOUS_DATA and word in PREVIOUS_DATA.keys() and str(Hash.getHash(ALL_IMAGES)) == Hash.getSavedHash(absolutePath) and len(ALL_IMAGES) == len(PREVIOUS_DATA[word]):
@@ -185,8 +214,14 @@ def getMediapipeDirectory():
             MEDIAPIPE_DIRECTORY += "/"      
     return MEDIAPIPE_DIRECTORY
 
+def sudoActivator():
+    stream = os.popen("sudo echo 'Sudo mode activated'")
+    output = stream.read()
+    return True
+
 def main():
     global SCRIPT_PATH
+    sudoActivator()
     pathname = os.path.dirname(sys.argv[0]) 
     SCRIPT_PATH = os.path.abspath(pathname)
     try:
