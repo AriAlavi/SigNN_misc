@@ -153,7 +153,7 @@ class Hash:
 
 
 def photoToJSON(absolutePath, word, mediapipeDirectory, PREVIOUS_DATA):
-    ALL_IMAGES = getImagesInFolder(absolutePath)
+    ALL_IMAGES = getImagesInFolder(absolutePath, word)
     
     if PREVIOUS_DATA and word in PREVIOUS_DATA.keys() and str(Hash.getHash(ALL_IMAGES)) == Hash.getSavedHash(absolutePath) and len(ALL_IMAGES) == len(PREVIOUS_DATA[word]):
         print("{} unmodified, using previous data".format(word))
